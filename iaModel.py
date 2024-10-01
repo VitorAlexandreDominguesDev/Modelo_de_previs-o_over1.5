@@ -4,6 +4,7 @@ import torch
 import time
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
+from tkinter import *
 
 # Classe do modelo da Rede Neural
 class Net(torch.nn.Module):
@@ -37,7 +38,7 @@ def redeNeural(nome, momentum, lr, epocas, hiddenSize, datasetNome):
 
     # Usar os dados de todas as partidas, não apenas o primeiro tempo
     df2 = df.iloc[20:]
-    
+
     # Adicionar a coluna "Over1.5" com base no total de gols marcados no jogo
     df2['FTSG'] = df2['FTHG'] + df2['FTAG']  # FTHG: Gols da equipe da casa, FTAG: Gols da equipe visitante
     df2['Over1.5'] = [1 if x > 1.5 else 0 for x in df2["FTSG"]]
@@ -70,13 +71,13 @@ def redeNeural(nome, momentum, lr, epocas, hiddenSize, datasetNome):
     training_input = df2.iloc[:, 3:]
     training_output = df2['Over1.5']
     test_input = media_times.iloc[:, 2:]
-    test_output = df2['Over1.5'] 
+    test_output = df2['Over1.5']
 
     # Normalizar os dados
     scaler = MinMaxScaler()
     training_input = scaler.fit_transform(training_input)
     test_input = scaler.fit_transform(test_input)
-    
+
     # Convertendo para tensor
     training_input = torch.FloatTensor(training_input)
     training_output = torch.FloatTensor(training_output.values)
@@ -135,12 +136,12 @@ def plotcharts(test_output, y_pred, errors, nomes_test):
     plt.setp(a, markersize=10)
     xx = [x for x in range(len(nomes_test))]
     for x, home, away in zip(xx, nomes_test['HomeTeam'], nomes_test['AwayTeam']):
-        plt.text(x, 1.10, home, rotation='vertical', verticalalignment='bottom', horizontalalignment='center')    
+        plt.text(x, 1.10, home, rotation='vertical', verticalalignment='bottom', horizontalalignment='center')
     plt.xticks(xx, nomes_test['AwayTeam'], rotation='vertical')
     plt.legend(loc=0)
     plt.savefig('graficoTrainOver1_5.png', bbox_inches='tight')
 
-hidden_size = 500
+hidden_size = 50
 
 def testar_modelo():
     df = pd.read_csv('premier-league-2023-2024-1.csv')
@@ -168,7 +169,7 @@ def testar_modelo():
     test_input = torch.tensor(test_input, dtype=torch.float32)
     input_size = test_input.size()[1]
     # Use the same hidden_size as when the model was trained
-    hidden_size = 50 
+    hidden_size = 15
     # Carregar o modelo treinado
     model = Net(input_size, hidden_size)
     model.load_state_dict(torch.load("modeloTreinadoOver1_5.pth"))
@@ -179,11 +180,11 @@ def testar_modelo():
     predicted = y_pred.detach().numpy()
     real_values = df2['Over1.5'].values
     predicted_values = (predicted > 0.5).astype(int)
-    
+
     # Calcular a acurácia
     accuracy = (predicted_values == real_values).mean()
     print(f'Acurácia: {accuracy * 100:.2f}%')
-    
+
     # Exibir os valores reais e previstos
     min_length = min(len(media_times_com_over['HomeTeam']), len(media_times_com_over['AwayTeam']), len(real_values), len(predicted_values.flatten()))
     comparison_df = pd.DataFrame({
@@ -193,9 +194,21 @@ def testar_modelo():
         'Predicted': predicted_values.flatten()[:min_length],
         'Acertou': ["Sim" if x == 1 else "Não" for x in (predicted_values.flatten()[:min_length] == real_values[:min_length]).astype(int)]
     })
-    print(comparison_df)
+    texto_previsao["text"] = comparison_df
 # Chamar a função para treinar o modelo e salvar os pesos
-redeNeural('teste', 0.9, 0.01, 10000, 50, 'premier-league-2023-2024-1')
+redeNeural('teste', 0.96, 0.35, 10000, 15, 'premier-league-2023-2024-1')
 # Chamar a função para testar o modelo
-testar_modelo()
 
+
+janela = Tk()
+janela.title("Comparação da previsão com dados reais")
+janela.geometry("400x400")
+texto_orientacao = Label(janela,text="clique no botão para ver o resultado da previsão")
+texto_orientacao.grid(column=0, row=0,padx=4,pady=4)
+
+botao = Button(janela,text="Mostrar resultado",command=testar_modelo)
+botao.grid(column=0,row=1)
+texto_previsao =Label(janela,text="")
+texto_previsao.grid(column=0,row=2)
+
+janela.mainloop()
